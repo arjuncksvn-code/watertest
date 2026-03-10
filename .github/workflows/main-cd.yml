@@ -1,43 +1,38 @@
 
-name: PR CI
+name: Deploy to Databricks
 
 on:
-  pull_request:
+  push:
     branches: ["main"]
 
 jobs:
-  pr-ci:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
+    - name: Install Databricks CLI
+      run: pip install databricks-cli
 
-    - name: Install dependencies
+    - name: Configure Databricks CLI
       run: |
-        pip install -r requirements.txt
+        databricks configure --token <<EOF
+        ${{ secrets.DATABRICKS_HOST }}
+        ${{ secrets.DATABRICKS_TOKEN }}
+        EOF
 
-    - name: Convert notebooks (if any)
+    - name: Deploy to Databricks Repo
       run: |
-        if ls notebooks/*.ipynb >/dev/null 2>&1; then
-          jupyter nbconvert --to python notebooks/*.ipynb
-        fi
+        databricks repos update \
+          --repo-id ${{ secrets.REPO_ID }} \
+          --path .
 
-    - name: Run tests
+    - name: Deploy Job Definition
       run: |
-        pytest --cov=. --cov-report xml
+        databricks jobs reset \
+          --job-id ${{ secrets.JOB_ID }} \
+          --json-file job_definitions/etl_job.json
 
-    - name: Sonar Scan
-      uses: sonarsource/sonarcloud-github-action@v2
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-    - name: Sonar Quality Gate
-      uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    - name: Trigger Job
+      run: databricks jobs run-now --job-id ${{ secrets.JOB_ID }}
