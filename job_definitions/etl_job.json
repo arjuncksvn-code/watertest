@@ -1,1 +1,13 @@
+{
+  "name": "ETL_Production_Job",
+  "tasks": [
+    {
+      "task_key": "run_etl",
+      "notebook_task": {
+        "notebook_path": "/Repos/my-team/my-project/notebooks/etl_job"
+      },
+      "existing_cluster_id": "abcd-12345-cluster-id"
+    }
+  ]
+}
 
