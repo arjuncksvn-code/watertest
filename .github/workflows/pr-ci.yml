@@ -1,0 +1,42 @@
+name: PR CI
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  pr-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Convert notebooks (if any)
+      run: |
+        if ls notebooks/*.ipynb >/dev/null 2>&1; then
+          jupyter nbconvert --to python notebooks/*.ipynb
+        fi
+
+    - name: Run tests
+      run: |
+        pytest --cov=. --cov-report xml
+
+    - name: Sonar Scan
+      uses: sonarsource/sonarcloud-github-action@v2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    - name: Sonar Quality Gate
+      uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
